@@ -14,10 +14,14 @@ pageBanner(array(
     while(have_posts()) {
         the_post();
         $mapLocation = get_field('map_location');
+    print_r( $mapLocation)
     ?>
         <div class="marker" 
             data-lat="<?php echo $mapLocation['lat'] ?>" 
             data-lng="<?php echo $mapLocation['lng']; ?>">
+            <h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
+            <?php echo $mapLocation['address']; ?>
+            
         </div>
     <?php }
     echo paginate_links();
@@ -27,5 +31,3 @@ pageBanner(array(
 
 <?php get_footer();?> 
 
-
-$api['key'] = 'AIzaSyAR4a8AE1j4gmwuo2_NOdDpJaSh3OBLHz4';
