@@ -1,14 +1,19 @@
 <?php
 
-require get_theme_file_path('./inc/search-route.php');
+require get_theme_file_path('/inc/like-route.php');
+require get_theme_file_path('/inc/search-route.php');
 
 function university_custom_rest() {
   register_rest_field('post', 'authorName', array(
-    'get_callback' => function (){return get_the_author();}
+    'get_callback' => function() {return get_the_author();}
+  ));
+
+  register_rest_field('note', 'userNoteCount', array(
+    'get_callback' => function() {return count_user_posts(get_current_user_id(), 'note');}
   ));
 }
 
-add_action( 'rest_api_init', 'university_custom_rest' );
+add_action('rest_api_init', 'university_custom_rest');
 
 function pageBanner($args = NULL) {
   
@@ -41,13 +46,14 @@ function pageBanner($args = NULL) {
 <?php }
 
 function university_files() {
-  wp_enqueue_script('googleMap', '//maps.googleapis.com/maps/api/js?key=AIzaSyA7GEhEi4wZrSL9DMp_v8T-TOXdu9QJATc', NULL, '1.0', true);
+  wp_enqueue_script('googleMap', '//maps.googleapis.com/maps/api/js?key=AIzaSyBh9b1rNCp6kOi5JeMHiRP4klDymBeoEWk', NULL, '1.0', true);
   wp_enqueue_script('main-university-js', get_theme_file_uri('/js/scripts-bundled.js'), NULL, '1.0', true);
   wp_enqueue_style('custom-google-fonts', '//fonts.googleapis.com/css?family=Roboto+Condensed:300,300i,400,400i,700,700i|Roboto:100,300,400,400i,700,700i');
   wp_enqueue_style('font-awesome', '//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css');
   wp_enqueue_style('university_main_styles', get_stylesheet_uri());
   wp_localize_script('main-university-js', 'universityData', array(
-    'root_url' => get_site_url()
+    'root_url' => get_site_url(),
+    'nonce' => wp_create_nonce('wp_rest')
   ));
 }
 
@@ -67,7 +73,6 @@ function university_adjust_queries($query) {
   if (!is_admin() AND is_post_type_archive('campus') AND is_main_query()) {
     $query->set('posts_per_page', -1);
   }
-
 
   if (!is_admin() AND is_post_type_archive('program') AND is_main_query()) {
     $query->set('orderby', 'title');
@@ -94,11 +99,12 @@ function university_adjust_queries($query) {
 add_action('pre_get_posts', 'university_adjust_queries');
 
 function universityMapKey($api) {
-  $api['key'] = 'AIzaSyA7GEhEi4wZrSL9DMp_v8T-TOXdu9QJATc';
+  $api['key'] = 'AIzaSyBh9b1rNCp6kOi5JeMHiRP4klDymBeoEWk';
   return $api;
 }
 
 add_filter('acf/fields/google_map/api', 'universityMapKey');
+
 
 // Redirect subscriber accounts out of admin and onto homepage
 add_action('admin_init', 'redirectSubsToFrontend');
@@ -140,4 +146,24 @@ add_filter('login_headertitle', 'ourLoginTitle');
 
 function ourLoginTitle() {
   return get_bloginfo('name');
+}
+
+// Force note posts to be private
+add_filter('wp_insert_post_data', 'makeNotePrivate', 10, 2);
+
+function makeNotePrivate($data, $postarr) {
+  if ($data['post_type'] == 'note') {
+    if(count_user_posts(get_current_user_id(), 'note') > 4 AND !$postarr['ID']) {
+      die("You have reached your note limit.");
+    }
+
+    $data['post_content'] = sanitize_textarea_field($data['post_content']);
+    $data['post_title'] = sanitize_text_field($data['post_title']);
+  }
+
+  if($data['post_type'] == 'note' AND $data['post_status'] != 'trash') {
+    $data['post_status'] = "private";
+  }
+  
+  return $data;
 }
